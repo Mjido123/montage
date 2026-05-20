@@ -8,10 +8,10 @@ import edge_tts
 from moviepy.editor import VideoFileClip, AudioFileClip, concatenate_videoclips
 
 # إعدادات الصفحة
-st.set_page_config(page_title="صانع الفيديوهات الطويلة تلقائياً 🎬", page_icon="🎬", layout="centered")
+st.set_page_config(page_title="صانع الفيديوهات التلقائي 🎬", page_icon="🎬", layout="centered")
 
-st.title("صانع الفيديوهات التلقائي بـ Python 🚀 (نسخة 30-50 ثانية)")
-st.write("اكتب الفكرة ديالك وخلي السيستم يولد مقطع طويل ومتكامل!")
+st.title("صانع الفيديوهات التلقائي بـ Python 🚀")
+st.write("اكتب الفكرة ديالك وخلي الذكاء الاصطناعي يتكلف بالمونتاج والتحميل!")
 
 # المفاتيح الخاصة بك
 GROQ_API_KEY = "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"
@@ -21,7 +21,6 @@ PEXELS_API_KEY = "XnPWWkhbXhrbNJT5kxbteSdlK7MGQ48fUNGUkM5R3yy0XxePAg85oifm"
 client = Groq(api_key=GROQ_API_KEY)
 
 def generate_script_and_keyword(idea_prompt):
-    # الـ Prompt الجديد كيجبر الـ AI يكتب نص طويل ومفصل
     system_prompt = (
         "You are an expert video creator. Based on the user's idea, generate a response in strict JSON format. "
         "The JSON must contain exactly two keys with plain string values:\n"
@@ -87,7 +86,7 @@ def edit_and_render_video(video_files, voice_path, output_name="final_short.mp4"
     
     for vid in video_files:
         clip = VideoFileClip(vid).subclip(0, duration_per_clip)
-        # توافق الحجم الآمن مع Pillow الحديثة
+        # تعديل الحجم المتوافق مع بايثون و Pillow الحديثة
         clip_resized = clip.fl_image(lambda image: image)
         clip_resized.size = (1080, 1920)
         clips.append(clip_resized)
@@ -101,7 +100,7 @@ def edit_and_render_video(video_files, voice_path, output_name="final_short.mp4"
         except: pass
 
 # --- واجهة الويب الإدخال ---
-idea = st.text_input("ادخل فكرة الفيديو ديالك هنا:", placeholder="مثال: نصائح ذهبية للنجاح في التداول وإدارة المخاطر البسيطة...")
+idea = st.text_input("ادخل فكرة الفيديو ديالك هنا:", placeholder="مثال: أهمية التداول وإدارة المخاطر...")
 
 if st.button("إصدار المقطع النهائي 🚀", use_container_width=True):
     if not idea.strip():
@@ -109,37 +108,37 @@ if st.button("إصدار المقطع النهائي 🚀", use_container_width=
     else:
         output_video = "my_awesome_short.mp4"
         
-        with st.status("⏳ جاري إنتاج فيديو طويل واحترافي...", expanded=True) as status:
+        with st.status("⏳ جاري العمل على الفيديو الخاص بك...", expanded=True) as status:
             try:
-                status.write("🤖 جاري كتابة نص طويل بالذكاء الاصطناعي...")
+                status.write("🤖 جاري كتابة السكربت بالذكاء الاصطناعي...")
                 script, keyword = generate_script_and_keyword(idea)
-                st.write(f"📜 **السكربت المولد:** {script}")
-                st.write(f"🔑 **الكلمة المفتاحية المستعملة:** {keyword}")
+                st.write(f"📜 **السكربت:** {script}")
+                st.write(f"🔑 **الكلمة المفتاحية:** {keyword}")
                 
-                status.write("🎙️ جاري توليد التعليق الصوتي المناسب...")
+                status.write("🎙️ جاري تسجيل الصوت التلقائي...")
                 asyncio.run(generate_voiceover(script, "voiceover.mp3"))
                 
-                status.write(f"🔍 جاري جلب 7 كليبات عمودية من Pexels عن: {keyword}...")
-                # غيرناها هنا لـ 7 كليبات لتغطية المدة الطويلة
+                status.write(f"🔍 جاري جلب الفيديوهات العمودية المناسبة من Pexels...")
                 videos = download_pexels_videos(keyword, count=7)
                 
                 if videos:
-                    status.write("🎬 جاري دمج المقاطع وعمل الـ Rendering النهائي...")
+                    status.write("🎬 جاري المونتاج والـ Rendering (ثواني فقط)...")
                     edit_and_render_video(videos, "voiceover.mp3", output_name=output_video)
-                    status.update(label="🎉 مبروك! الفيديو واجد دابا وطويل!", state="complete", expanded=True)
+                    status.update(label="🎉 مبروك! تم إنتاج الفيديو بنجاح!", state="complete", expanded=True)
                     
-                    st.success("ها هو الفيديو ديالك واجد لتتفرج وتحمل:")
+                    # عرض الفيديو للتحميل
+                    st.success("ها هو الفيديو ديالك واجد:")
                     with open(output_video, "rb") as file:
                         st.video(file)
                         st.download_button(
-                            label="📥 تحميل الفيديو النهائي (MP4)",
+                            label="📥 تحميل الفيديو النهائي",
                             data=file,
-                            file_name="reels_long_short.mp4",
+                            file_name="reels_short.mp4",
                             mime="video/mp4"
                         )
                 else:
                     status.update(label="❌ فشل في جلب الفيديوهات", state="error")
-                    st.error("لم نجد فيديوهات كافية في Pexels للموضوع.")
+                    st.error("لم نجد فيديوهات مناسبة ف Pexels.")
             except Exception as e:
-                status.update(label="❌ وقع خطأ في المعالجة", state="error")
+                status.update(label="❌ وقع خطأ غير متوقع", state="error")
                 st.error(f"تفاصيل الخطأ: {str(e)}")
