@@ -1,0 +1,5 @@
+streamlit
+groq
+edge-tts
+requests
+moviepy==1.0.3
