@@ -11,7 +11,7 @@ from moviepy.editor import VideoFileClip, AudioFileClip, concatenate_videoclips
 st.set_page_config(page_title="صانع الفيديوهات التلقائي 🎬", page_icon="🎬", layout="centered")
 
 st.title("صانع الفيديوهات التلقائي بـ Python 🚀")
-st.write("اكتب الفكرة ديالك، اختار الصوت اللي عجبك، وخلي الذكاء الاصطناعي يتكلف!")
+st.write("اكتب الفكرة ديالك، اختار الصوت، وخلي الذكاء الاصطناعي يتكلف بمقطع نقي وبلا أغلاط!")
 
 # المفاتيح الخاصة بك
 GROQ_API_KEY = "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"
@@ -21,33 +21,45 @@ PEXELS_API_KEY = "XnPWWkhbXhrbNJT5kxbteSdlK7MGQ48fUNGUkM5R3yy0XxePAg85oifm"
 client = Groq(api_key=GROQ_API_KEY)
 
 def generate_script_and_keyword(idea_prompt):
+    # Prompt مطور ومشدد باش يمنع الأغلاط والرموز تماماً
     system_prompt = (
-        "You are an expert video creator. Based on the user's idea, generate a response in strict JSON format. "
-        "The JSON must contain exactly two keys with plain string values:\n"
-        "1. 'script': A detailed, engaging, and long narrative for a Reel/Short (30 to 50 seconds long) in standard Arabic or Moroccan Darija. "
-        "It MUST be between 90 to 130 words long to ensure a longer voiceover duration. Pure plain text, no symbols.\n"
-        "2. 'keyword': One single English word representing the visual theme (e.g., 'trading', 'success', 'office'). No spaces, no symbols.\n"
-        "Do not include any text outside the raw JSON object."
+        "You are an expert video scriptwriter. Based on the user's idea, generate a response in strict JSON format.\n\n"
+        "CRITICAL INSTRUCTIONS FOR THE 'script' KEY:\n"
+        "1. Write a beautifully structured, highly engaging narrative for a 30-50 seconds Reel/Short.\n"
+        "2. Use clear, correct, and professional Modern Standard Arabic (اللغة العربية الفصحى المبسطة) so the text-to-speech engine pronounces it perfectly.\n"
+        "3. Absolute plain text ONLY. DO NOT use any markdown (no **, no *, no __), no bullet points, no mathematical symbols, no English characters, and no quotation marks within the script.\n"
+        "4. It MUST be between 90 to 130 words long.\n\n"
+        "CRITICAL INSTRUCTIONS FOR THE 'keyword' KEY:\n"
+        "1. Provide exactly ONE single English word that captures the main visual theme for stock footage (e.g., 'trading', 'success', 'meditation'). No spaces, no symbols.\n\n"
+        "Do not include any intro, outro, or markdown formatting like ```json outside the raw JSON object."
     )
+    
     chat_completion = client.chat.completions.create(
         messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": idea_prompt}],
         model="llama-3.1-8b-instant",
         response_format={"type": "json_object"}
     )
+    
     result = json.loads(chat_completion.choices[0].message.content.strip())
-    return str(result.get('script', '')), str(result.get('keyword', 'video')).strip()
+    
+    # تنظيف ميكانيكي صارم داخل بايثون لحذف أي رموز غبر متوقعة
+    raw_script = str(result.get('script', ''))
+    clean_script = raw_script.replace('**', '').replace('*', '').replace('`', '').replace('"', '').replace('"', '').replace("'", "")
+    
+    clean_keyword = str(result.get('keyword', 'video')).replace('"', '').replace("'", "").strip()
+    
+    return clean_script, clean_keyword
 
 async def generate_voiceover(text_script, selected_voice, output_audio_path="voiceover.mp3"):
     if os.path.exists(output_audio_path):
         try: os.remove(output_audio_path)
         except: pass
-    # استخدام الصوت المعزول والمختار من طرف المستخدم
     communicate = edge_tts.Communicate(text_script, voice=selected_voice)
     await communicate.save(output_audio_path)
 
 def download_pexels_videos(search_query, count=7):
     headers = {"Authorization": PEXELS_API_KEY.strip()}
-    url = "https://api.pexels.com/v1/videos/search"
+    url = "[https://api.pexels.com/v1/videos/search](https://api.pexels.com/v1/videos/search)"
     query_params = {"query": search_query, "per_page": count, "orientation": "portrait"}
     
     try:
@@ -101,10 +113,8 @@ def edit_and_render_video(video_files, voice_path, output_name="final_short.mp4"
 
 # --- واجهة الويب (Streamlit UI) ---
 
-# 1. خانة إدخال الفكرة
-idea = st.text_input("ادخل فكرة الفيديو ديالك هنا:", placeholder="مثال: نصائح ذهبية لتنظيم الوقت اليومي...")
+idea = st.text_input("ادخل فكرة الفيديو ديالك هنا:", placeholder="مثال: أهمية الصبر والانضباط في تداول أسواق المال...")
 
-# 2. قائمة اختيار الأصوات الذكية
 voice_options = {
     "🎙️ منى (امرأة - لهجة مغربية) 🇲🇦": "ar-MA-MounaNeural",
     "🎙️ جمال (راجل - لهجة مغربية) 🇲🇦": "ar-MA-JamalNeural",
@@ -115,44 +125,44 @@ voice_options = {
 selected_voice_label = st.selectbox("اختار المعلق الصوتي (Voice):", list(voice_options.keys()))
 chosen_voice_code = voice_options[selected_voice_label]
 
-# 3. زر البدء
 if st.button("إصدار المقطع النهائي 🚀", use_container_width=True):
     if not idea.strip():
         st.error("عافاك كتب شي فكرة الأول!")
     else:
         output_video = "my_awesome_short.mp4"
         
-        with st.status("⏳ جاري العمل على الفيديو الخاص بك...", expanded=True) as status:
+        with st.status("⏳ جاري توليد مقطع احترافي ونقي...", expanded=True) as status:
             try:
-                status.write("🤖 جاري كتابة السكربت بالذكاء الاصطناعي...")
+                status.write("🤖 جاري كتابة السكربت وتنظيفه تلقائياً...")
                 script, keyword = generate_script_and_keyword(idea)
-                st.write(f"📜 **السكربت المولد:** {script}")
-                st.write(f"🔑 **الكلمة المفتاحية:** {keyword}")
                 
-                status.write(f"🎙️ جاري تسجيل الصوت باستعمال اختيارك...")
-                # دوزنا الصوت المختار للدالة هنا
+                # عرض السكربت نقي ف الواجهة للتأكد
+                st.info(f"📜 **السكربت المولد (بدون أخطاء رموز):**\n\n{script}")
+                st.caption(f"🔑 **الكلمة المفتاحية للبحث:** {keyword}")
+                
+                status.write("🎙️ جاري تسجيل الصوت التلقائي...")
                 asyncio.run(generate_voiceover(script, chosen_voice_code, "voiceover.mp3"))
                 
-                status.write(f"🔍 جاري جلب الفيديوهات العمودية المناسبة من Pexels...")
+                status.write(f"🔍 جاري تحميل الكليبات المناسبة من Pexels...")
                 videos = download_pexels_videos(keyword, count=7)
                 
                 if videos:
-                    status.write("🎬 جاري المونتاج والـ Rendering (ثواني فقط)...")
+                    status.write("🎬 جاري المونتاج والـ Rendering النهائي...")
                     edit_and_render_video(videos, "voiceover.mp3", output_name=output_video)
-                    status.update(label="🎉 مبروك! تم إنتاج الفيديو بنجاح!", state="complete", expanded=True)
+                    status.update(label="🎉 مبروك! الفيديو واجد دابا ونقي 100%!", state="complete", expanded=True)
                     
-                    st.success("ها هو الفيديو ديالك واجد:")
+                    st.success("ها هو الفيديو ديالك جاهز للتحميل:")
                     with open(output_video, "rb") as file:
                         st.video(file)
                         st.download_button(
-                            label="📥 تحميل الفيديو النهائي",
+                            label="📥 تحميل الفيديو النهائي (MP4)",
                             data=file,
-                            file_name="reels_short.mp4",
+                            file_name="perfect_short.mp4",
                             mime="video/mp4"
                         )
                 else:
                     status.update(label="❌ فشل في جلب الفيديوهات", state="error")
                     st.error("لم نجد فيديوهات مناسبة ف Pexels.")
             except Exception as e:
-                status.update(label="❌ وقع خطأ غير متوقع", state="error")
+                status.update(label="❌ وقع خطأ في المعالجة", state="error")
                 st.error(f"تفاصيل الخطأ: {str(e)}")
