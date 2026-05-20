@@ -8,10 +8,10 @@ import edge_tts
 from moviepy.editor import VideoFileClip, AudioFileClip, concatenate_videoclips
 
 # إعدادات الصفحة
-st.set_page_config(page_title="صانع الفيديوهات التلقائي 🎬", page_icon="🎬", layout="centered")
+st.set_page_config(page_title="صانع الفيديوهات بالسكربت ديالك 🎬", page_icon="🎬", layout="centered")
 
-st.title("صانع الفيديوهات التلقائي بـ Python 🚀")
-st.write("نسخة محمية 100% ضد أخطاء التحميل والمونتاج!")
+st.title("صانع الفيديوهات التلقائي بـ السكربت ديالك 🚀")
+st.write("حط السكربت اللي بغيتي بيدك، واختار المعلق الصوتي، وخلي السيستم يجمع ليك الفيديو!")
 
 # المفاتيح الخاصة بك
 GROQ_API_KEY = "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"
@@ -20,32 +20,23 @@ PEXELS_API_KEY = "XnPWWkhbXhrbNJT5kxbteSdlK7MGQ48fUNGUkM5R3yy0XxePAg85oifm"
 # إعداد Groq
 client = Groq(api_key=GROQ_API_KEY)
 
-def generate_script_and_keyword(idea_prompt):
+def extract_keyword_from_script(user_script):
+    # ذكاء اصطناعي خفيف كيقرأ السكربت ديالك ويخرج منو أفضل كلمة مفتاحية بالإنجليزية للبحث ف Pexels
     system_prompt = (
-        "You are an expert video scriptwriter. Based on the user's idea, generate a response in strict JSON format.\n\n"
-        "CRITICAL INSTRUCTIONS FOR THE 'script' KEY:\n"
-        "1. Write a beautifully structured, highly engaging narrative for a 30-50 seconds Reel/Short.\n"
-        "2. Use clear, correct, and professional Modern Standard Arabic (اللغة العربية الفصحى المبسطة).\n"
-        "3. Absolute plain text ONLY. DO NOT use any markdown (no **, no *, no __), no bullet points, no symbols, and no quotation marks.\n"
-        "4. It MUST be between 90 to 130 words long.\n\n"
-        "CRITICAL INSTRUCTIONS FOR THE 'keyword' KEY:\n"
-        "1. Provide exactly ONE single English word that captures the main visual theme (e.g., 'trading', 'success', 'office'). Lowercase only.\n\n"
-        "Do not include any intro, outro, or markdown formatting outside the raw JSON object."
+        "You are an AI that analyzes text. Read the user's video script and extract exactly ONE single English word "
+        "that represents the best visual theme for stock footage (e.g., 'trading', 'success', 'office', 'nature', 'fitness'). "
+        "Respond strictly with a JSON object containing the key 'keyword' with a lowercase string value. No formatting, no extra words."
     )
-    
-    chat_completion = client.chat.completions.create(
-        messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": idea_prompt}],
-        model="llama-3.1-8b-instant",
-        response_format={"type": "json_object"}
-    )
-    
-    result = json.loads(chat_completion.choices[0].message.content.strip())
-    
-    raw_script = str(result.get('script', ''))
-    clean_script = raw_script.replace('**', '').replace('*', '').replace('`', '').replace('"', '').replace("'", "")
-    clean_keyword = str(result.get('keyword', 'video')).replace('"', '').replace("'", "").strip().lower()
-    
-    return clean_script, clean_keyword
+    try:
+        chat_completion = client.chat.completions.create(
+            messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_script}],
+            model="llama-3.1-8b-instant",
+            response_format={"type": "json_object"}
+        )
+        result = json.loads(chat_completion.choices[0].message.content.strip())
+        return str(result.get('keyword', 'video')).replace('"', '').replace("'", "").strip().lower()
+    except:
+        return "video"
 
 async def generate_voiceover(text_script, selected_voice, output_audio_path="voiceover.mp3"):
     if os.path.exists(output_audio_path):
@@ -59,7 +50,6 @@ def download_pexels_videos(search_query, count=5):
     url = "https://api.pexels.com/v1/videos/search"
     query = search_query.strip()
     
-    # محاولة أولى: بحث عمودي (Portrait)
     query_params = {"query": query, "per_page": count, "orientation": "portrait"}
     videos_list = []
     
@@ -70,7 +60,6 @@ def download_pexels_videos(search_query, count=5):
     except:
         pass
         
-    # محاولة ثانية: يلا مالقاش، كيحيد فلتر العمودي باش يجيب أي حاجة واجدة تما
     if not videos_list:
         query_params.pop("orientation", None)
         try:
@@ -84,7 +73,6 @@ def download_pexels_videos(search_query, count=5):
     if not os.path.exists("temp_clips"): 
         os.makedirs("temp_clips")
 
-    # 🎯 الخطة الإستراتيجية البديلة: روابط فيديوهات ثابتة وعالية الجودة ف حالة فشل Pexels تماماً
     fallback_urls = [
         "https://assets.mixkit.co/videos/preview/mixkit-man-working-on-his-laptop-in-an-office-42322-large.mp4",
         "https://assets.mixkit.co/videos/preview/mixkit-financial-charts-on-a-computer-monitor-43184-large.mp4",
@@ -112,7 +100,6 @@ def download_pexels_videos(search_query, count=5):
                     video_files.append(file_path)
                 except: pass
 
-    # يلا لسبب ما Pexels رجع خاوي، كيهز الفيديوهات البديلة مباشرة
     if not video_files:
         st.warning("⚠️ تم الانتقال للفيديوهات الاحتياطية لتأمين إنتاج المقطع...")
         for i, b_url in enumerate(fallback_urls[:count]):
@@ -147,8 +134,10 @@ def edit_and_render_video(video_files, voice_path, output_name="final_short.mp4"
 
 # --- واجهة الويب (Streamlit UI) ---
 
-idea = st.text_input("ادخل فكرة الفيديو ديالك هنا:", placeholder="مثال: أهمية الصبر والانضباط في تداول أسواق المال...")
+# الخانة الكبيرة الجديدة باش تحط السكربت ديالك بيدك
+user_script = st.text_area("✍️ اكتب أو الصق السكربت ديالك هنا:", placeholder="مثال: السلام عليكم، اليوم غادي نهضرو على أهم سر ف التداول...", height=150)
 
+# قائمة اختيار الأصوات
 voice_options = {
     "🎙️ منى (امرأة - لهجة مغربية) 🇲🇦": "ar-MA-MounaNeural",
     "🎙️ جمال (راجل - لهجة مغربية) 🇲🇦": "ar-MA-JamalNeural",
@@ -159,44 +148,41 @@ voice_options = {
 selected_voice_label = st.selectbox("اختار المعلق الصوتي (Voice):", list(voice_options.keys()))
 chosen_voice_code = voice_options[selected_voice_label]
 
-if st.button("إصدار المقطع النهائي 🚀", use_container_width=True):
-    if not idea.strip():
-        st.error("عافاك كتب شي فكرة الأول!")
+if st.button("إصدار الفيديو النهائي 🚀", use_container_width=True):
+    if not user_script.strip():
+        st.error("عافاك كتب السكربت ديالك ف الخانة أولاً!")
     else:
         output_video = "my_awesome_short.mp4"
         
-        with st.status("⏳ جاري توليد مقطع احترافي ونقي...", expanded=True) as status:
+        with st.status("⏳ جاري معالجة السكربت الخاص بك والمونتاج...", expanded=True) as status:
             try:
-                status.write("🤖 جاري كتابة السكربت وتنظيفه تلقائياً...")
-                script, keyword = generate_script_and_keyword(idea)
+                status.write("🔍 جاري تحليل السكربت لاستخراج الكلمة المفتاحية للـ كليبات...")
+                keyword = extract_keyword_from_script(user_script)
+                st.caption(f"🔑 **الكلمة المفتاحية المستخرجة تلقائياً:** {keyword}")
                 
-                st.info(f"📜 **السكربت المولد:**\n\n{script}")
-                st.caption(f"🔑 **الكلمة المفتاحية للبحث:** {keyword}")
+                status.write("🎙️ جاري توليد وتصنيع التعليق الصوتي...")
+                asyncio.run(generate_voiceover(user_script, chosen_voice_code, "voiceover.mp3"))
                 
-                status.write("🎙️ جاري تسجيل الصوت التلقائي...")
-                asyncio.run(generate_voiceover(script, chosen_voice_code, "voiceover.mp3"))
-                
-                status.write(f"🔍 جاري معالجة وجلب الكليبات المونتاجية...")
-                # طلب 5 كليبات لتسريع العملية وتأمينها
+                status.write(f"📥 جاري جلب كليبات مناسبة من Pexels عن: {keyword}...")
                 videos = download_pexels_videos(keyword, count=5)
                 
                 if videos:
                     status.write("🎬 جاري المونتاج والـ Rendering النهائي...")
                     edit_and_render_video(videos, "voiceover.mp3", output_name=output_video)
-                    status.update(label="🎉 مبروك! تم إنتاج الفيديو بنجاح واكتملت المعالجة!", state="complete", expanded=True)
+                    status.update(label="🎉 مبروك! الفيديو واجد دابا بالسكربت ديالك!", state="complete", expanded=True)
                     
-                    st.success("ها هو الفيديو ديالك جاهز للتحميل:")
+                    st.success("ها هو المقطع ديالك جاهز:")
                     with open(output_video, "rb") as file:
                         st.video(file)
                         st.download_button(
                             label="📥 تحميل الفيديو النهائي (MP4)",
                             data=file,
-                            file_name="perfect_short.mp4",
+                            file_name="my_custom_short.mp4",
                             mime="video/mp4"
                         )
                 else:
-                    status.update(label="❌ فشل تام في جلب أي فيديو", state="error")
-                    st.error("لم نتمكن من جلب فيديوهات أساسية أو احتياطية. يرجى مراجعة الشبكة.")
+                    status.update(label="❌ فشل في جلب فيديوهات", state="error")
+                    st.error("لم نتمكن من العثور على لقطات مناسبة.")
             except Exception as e:
                 status.update(label="❌ وقع خطأ في المعالجة", state="error")
                 st.error(f"تفاصيل الخطأ: {str(e)}")
