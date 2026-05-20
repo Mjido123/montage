@@ -11,7 +11,7 @@ from moviepy.editor import VideoFileClip, AudioFileClip, concatenate_videoclips
 st.set_page_config(page_title="صانع الفيديوهات التلقائي 🎬", page_icon="🎬", layout="centered")
 
 st.title("صانع الفيديوهات التلقائي بـ Python 🚀")
-st.write("اكتب الفكرة ديالك، اختار الصوت، وخلي الذكاء الاصطناعي يتكلف بمقطع نقي وبلا أغلاط!")
+st.write("اكتب الفكرة ديالك، اختار الصوت، وخلي الذكاء الاصطناعي يتكلف بمقطع نقي وبلا أخطاء!")
 
 # المفاتيح الخاصة بك
 GROQ_API_KEY = "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"
@@ -21,7 +21,6 @@ PEXELS_API_KEY = "XnPWWkhbXhrbNJT5kxbteSdlK7MGQ48fUNGUkM5R3yy0XxePAg85oifm"
 client = Groq(api_key=GROQ_API_KEY)
 
 def generate_script_and_keyword(idea_prompt):
-    # Prompt مطور ومشدد باش يمنع الأغلاط والرموز تماماً
     system_prompt = (
         "You are an expert video scriptwriter. Based on the user's idea, generate a response in strict JSON format.\n\n"
         "CRITICAL INSTRUCTIONS FOR THE 'script' KEY:\n"
@@ -30,7 +29,7 @@ def generate_script_and_keyword(idea_prompt):
         "3. Absolute plain text ONLY. DO NOT use any markdown (no **, no *, no __), no bullet points, no mathematical symbols, no English characters, and no quotation marks within the script.\n"
         "4. It MUST be between 90 to 130 words long.\n\n"
         "CRITICAL INSTRUCTIONS FOR THE 'keyword' KEY:\n"
-        "1. Provide exactly ONE single English word that captures the main visual theme for stock footage (e.g., 'trading', 'success', 'meditation'). No spaces, no symbols.\n\n"
+        "1. Provide exactly ONE single English word that captures the main visual theme for stock footage (e.g., 'trading', 'success', 'office'). No spaces, no symbols, lowercase only.\n\n"
         "Do not include any intro, outro, or markdown formatting like ```json outside the raw JSON object."
     )
     
@@ -42,11 +41,12 @@ def generate_script_and_keyword(idea_prompt):
     
     result = json.loads(chat_completion.choices[0].message.content.strip())
     
-    # تنظيف ميكانيكي صارم داخل بايثون لحذف أي رموز غبر متوقعة
+    # تنظيف صارم للسكربت
     raw_script = str(result.get('script', ''))
-    clean_script = raw_script.replace('**', '').replace('*', '').replace('`', '').replace('"', '').replace('"', '').replace("'", "")
+    clean_script = raw_script.replace('**', '').replace('*', '').replace('`', '').replace('"', '').replace("'", "")
     
-    clean_keyword = str(result.get('keyword', 'video')).replace('"', '').replace("'", "").strip()
+    # تنظيف الكلمة المفتاحية من كاع الشوائب والفراغات المخفية
+    clean_keyword = str(result.get('keyword', 'video')).replace('"', '').replace("'", "").replace("[", "").replace("]", "").strip().lower()
     
     return clean_script, clean_keyword
 
@@ -60,19 +60,36 @@ async def generate_voiceover(text_script, selected_voice, output_audio_path="voi
 def download_pexels_videos(search_query, count=7):
     headers = {"Authorization": PEXELS_API_KEY.strip()}
     url = "[https://api.pexels.com/v1/videos/search](https://api.pexels.com/v1/videos/search)"
-    query_params = {"query": search_query, "per_page": count, "orientation": "portrait"}
+    
+    # تنظيف الكلمة المستعملة ف الروابط
+    query = search_query.strip()
+    query_params = {"query": query, "per_page": count, "orientation": "portrait"}
     
     try:
         response = requests.get(url, headers=headers, params=query_params, timeout=15)
-        if response.status_code != 200: return []
+        if response.status_code != 200: 
+            return []
         data = response.json()
     except:
         return []
         
-    video_files = []
-    if not os.path.exists("temp_clips"): os.makedirs("temp_clips")
-
     videos_list = data.get('videos', [])
+    
+    # 🎯 خطة بديلة (Fallback): يلا مالقاش فيديوهات بالكلمة المحددة، كيجرب كلمات عامة مضمونة ف Pexels
+    if not videos_list and query != "business":
+        print(f"No videos found for '{query}', trying fallback 'business'...")
+        query_params["query"] = "business"
+        try:
+            response = requests.get(url, headers=headers, params=query_params, timeout=15)
+            data = response.json()
+            videos_list = data.get('videos', [])
+        except:
+            return []
+
+    video_files = []
+    if not os.path.exists("temp_clips"): 
+        os.makedirs("temp_clips")
+
     for i, video in enumerate(videos_list):
         video_files_list = video.get('video_files', [])
         best_video_url = None
@@ -80,15 +97,19 @@ def download_pexels_videos(search_query, count=7):
             if v_file.get('width') == 1080 or v_file.get('quality') == 'hd':
                 best_video_url = v_file.get('link')
                 break
-        if not best_video_url and video_files_list: best_video_url = video_files_list[0].get('link')
+        if not best_video_url and video_files_list: 
+            best_video_url = video_files_list[0].get('link')
 
         if best_video_url:
             try:
                 video_data = requests.get(best_video_url, timeout=30).content
                 file_path = f"temp_clips/clip_{i+1}.mp4"
-                with open(file_path, 'wb') as f: f.write(video_data)
+                with open(file_path, 'wb') as f: 
+                    f.write(video_data)
                 video_files.append(file_path)
-            except: pass
+            except: 
+                pass
+                
     return video_files
 
 def edit_and_render_video(video_files, voice_path, output_name="final_short.mp4"):
@@ -125,7 +146,7 @@ voice_options = {
 selected_voice_label = st.selectbox("اختار المعلق الصوتي (Voice):", list(voice_options.keys()))
 chosen_voice_code = voice_options[selected_voice_label]
 
-if st.button("إصدار المقطع النهائي 🚀", use_container_width=True):
+if st.button("إصدار Mقطع النهائي 🚀", use_container_width=True):
     if not idea.strip():
         st.error("عافاك كتب شي فكرة الأول!")
     else:
@@ -136,8 +157,7 @@ if st.button("إصدار المقطع النهائي 🚀", use_container_width=
                 status.write("🤖 جاري كتابة السكربت وتنظيفه تلقائياً...")
                 script, keyword = generate_script_and_keyword(idea)
                 
-                # عرض السكربت نقي ف الواجهة للتأكد
-                st.info(f"📜 **السكربت المولد (بدون أخطاء رموز):**\n\n{script}")
+                st.info(f"📜 **السكربت المولد:**\n\n{script}")
                 st.caption(f"🔑 **الكلمة المفتاحية للبحث:** {keyword}")
                 
                 status.write("🎙️ جاري تسجيل الصوت التلقائي...")
