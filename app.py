@@ -11,7 +11,7 @@ from moviepy.editor import VideoFileClip, AudioFileClip, concatenate_videoclips
 st.set_page_config(page_title="صانع الفيديوهات التلقائي 🎬", page_icon="🎬", layout="centered")
 
 st.title("صانع الفيديوهات التلقائي بـ Python 🚀")
-st.write("اكتب الفكرة ديالك وخلي الذكاء الاصطناعي يتكلف بالمونتاج والتحميل!")
+st.write("اكتب الفكرة ديالك، اختار الصوت اللي عجبك، وخلي الذكاء الاصطناعي يتكلف!")
 
 # المفاتيح الخاصة بك
 GROQ_API_KEY = "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"
@@ -24,7 +24,7 @@ def generate_script_and_keyword(idea_prompt):
     system_prompt = (
         "You are an expert video creator. Based on the user's idea, generate a response in strict JSON format. "
         "The JSON must contain exactly two keys with plain string values:\n"
-        "1. 'script': A detailed, engaging, and long narrative for a Reel/Short (30 to 50 seconds long) in standard Arabic. "
+        "1. 'script': A detailed, engaging, and long narrative for a Reel/Short (30 to 50 seconds long) in standard Arabic or Moroccan Darija. "
         "It MUST be between 90 to 130 words long to ensure a longer voiceover duration. Pure plain text, no symbols.\n"
         "2. 'keyword': One single English word representing the visual theme (e.g., 'trading', 'success', 'office'). No spaces, no symbols.\n"
         "Do not include any text outside the raw JSON object."
@@ -37,11 +37,12 @@ def generate_script_and_keyword(idea_prompt):
     result = json.loads(chat_completion.choices[0].message.content.strip())
     return str(result.get('script', '')), str(result.get('keyword', 'video')).strip()
 
-async def generate_voiceover(text_script, output_audio_path="voiceover.mp3"):
+async def generate_voiceover(text_script, selected_voice, output_audio_path="voiceover.mp3"):
     if os.path.exists(output_audio_path):
         try: os.remove(output_audio_path)
         except: pass
-    communicate = edge_tts.Communicate(text_script, voice="ar-MA-MounaNeural")
+    # استخدام الصوت المعزول والمختار من طرف المستخدم
+    communicate = edge_tts.Communicate(text_script, voice=selected_voice)
     await communicate.save(output_audio_path)
 
 def download_pexels_videos(search_query, count=7):
@@ -98,10 +99,23 @@ def edit_and_render_video(video_files, voice_path, output_name="final_short.mp4"
         try: os.remove(vid)
         except: pass
 
-# --- واجهة الويب الإدخال (معزولة دابا وعمرها تطيح) ---
-# حطينا placeholder آمن باش السكربت ما يخدمش تلقائياً ف البدء
-idea = st.text_input("ادخل فكرة الفيديو ديالك هنا:", placeholder="مثال: أهمية التداول وإدارة المخاطر...")
+# --- واجهة الويب (Streamlit UI) ---
 
+# 1. خانة إدخال الفكرة
+idea = st.text_input("ادخل فكرة الفيديو ديالك هنا:", placeholder="مثال: نصائح ذهبية لتنظيم الوقت اليومي...")
+
+# 2. قائمة اختيار الأصوات الذكية
+voice_options = {
+    "🎙️ منى (امرأة - لهجة مغربية) 🇲🇦": "ar-MA-MounaNeural",
+    "🎙️ جمال (راجل - لهجة مغربية) 🇲🇦": "ar-MA-JamalNeural",
+    "🎙️ حامد (راجل - لغة عربية فصحى) 🇸🇦": "ar-SA-HamedNeural",
+    "🎙️ زارية (امرأة - لغة عربية فصحى) 🇸🇦": "ar-SA-ZariyahNeural"
+}
+
+selected_voice_label = st.selectbox("اختار المعلق الصوتي (Voice):", list(voice_options.keys()))
+chosen_voice_code = voice_options[selected_voice_label]
+
+# 3. زر البدء
 if st.button("إصدار المقطع النهائي 🚀", use_container_width=True):
     if not idea.strip():
         st.error("عافاك كتب شي فكرة الأول!")
@@ -112,11 +126,12 @@ if st.button("إصدار المقطع النهائي 🚀", use_container_width=
             try:
                 status.write("🤖 جاري كتابة السكربت بالذكاء الاصطناعي...")
                 script, keyword = generate_script_and_keyword(idea)
-                st.write(f"📜 **السكربت:** {script}")
+                st.write(f"📜 **السكربت المولد:** {script}")
                 st.write(f"🔑 **الكلمة المفتاحية:** {keyword}")
                 
-                status.write("🎙️ جاري تسجيل الصوت التلقائي...")
-                asyncio.run(generate_voiceover(script, "voiceover.mp3"))
+                status.write(f"🎙️ جاري تسجيل الصوت باستعمال اختيارك...")
+                # دوزنا الصوت المختار للدالة هنا
+                asyncio.run(generate_voiceover(script, chosen_voice_code, "voiceover.mp3"))
                 
                 status.write(f"🔍 جاري جلب الفيديوهات العمودية المناسبة من Pexels...")
                 videos = download_pexels_videos(keyword, count=7)
