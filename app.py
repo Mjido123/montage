@@ -86,7 +86,6 @@ def edit_and_render_video(video_files, voice_path, output_name="final_short.mp4"
     
     for vid in video_files:
         clip = VideoFileClip(vid).subclip(0, duration_per_clip)
-        # تعديل الحجم المتوافق مع بايثون و Pillow الحديثة
         clip_resized = clip.fl_image(lambda image: image)
         clip_resized.size = (1080, 1920)
         clips.append(clip_resized)
@@ -99,7 +98,8 @@ def edit_and_render_video(video_files, voice_path, output_name="final_short.mp4"
         try: os.remove(vid)
         except: pass
 
-# --- واجهة الويب الإدخال ---
+# --- واجهة الويب الإدخال (معزولة دابا وعمرها تطيح) ---
+# حطينا placeholder آمن باش السكربت ما يخدمش تلقائياً ف البدء
 idea = st.text_input("ادخل فكرة الفيديو ديالك هنا:", placeholder="مثال: أهمية التداول وإدارة المخاطر...")
 
 if st.button("إصدار المقطع النهائي 🚀", use_container_width=True):
@@ -126,7 +126,6 @@ if st.button("إصدار المقطع النهائي 🚀", use_container_width=
                     edit_and_render_video(videos, "voiceover.mp3", output_name=output_video)
                     status.update(label="🎉 مبروك! تم إنتاج الفيديو بنجاح!", state="complete", expanded=True)
                     
-                    # عرض الفيديو للتحميل
                     st.success("ها هو الفيديو ديالك واجد:")
                     with open(output_video, "rb") as file:
                         st.video(file)
